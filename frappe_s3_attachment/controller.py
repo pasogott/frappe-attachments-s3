@@ -5,6 +5,8 @@ import os
 import random
 import re
 import string
+import urllib.parse
+import unicodedata
 
 import boto3
 
@@ -111,6 +113,7 @@ class S3Operations(object):
         mime_type = magic.from_file(file_path, mime=True)
         key = self.key_generator(file_name, parent_doctype, parent_name)
         content_type = mime_type
+        ascii_file_name = unicodedata.normalize('NFKD', file_name).encode('ascii', 'ignore').decode('ascii')
         try:
             if is_private:
                 self.S3_CLIENT.upload_file(
@@ -119,7 +122,7 @@ class S3Operations(object):
                         "ContentType": content_type,
                         "Metadata": {
                             "ContentType": content_type,
-                            "file_name": file_name
+                            "file_name": ascii_file_name
                         }
                     }
                 )
@@ -174,7 +177,8 @@ class S3Operations(object):
 
         }
         if file_name:
-            params['ResponseContentDisposition'] = 'filename={}'.format(file_name)
+                quoted_name = urllib.parse.quote(file_name)
+                params['ResponseContentDisposition'] = f'attachment; filename*=UTF-8\'\'{quoted_name}'
 
         url = self.S3_CLIENT.generate_presigned_url(
             'get_object',
